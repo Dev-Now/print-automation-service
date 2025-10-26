@@ -1,0 +1,32 @@
+# Auto-Print Service - Python Dependencies
+# Brother MFC-L2750DW Automated Printer Management
+# Python 3.11+
+
+# Windows API Integration
+pywin32>=306              # Windows APIs for printing, services, WiFi
+
+# WiFi Management
+pywifi>=1.1.12           # WiFi control and connection management
+comtypes>=1.2.0          # Required for pywifi on Windows
+
+# File System Monitoring
+watchdog>=3.0.0          # Monitor print_jobs directory for new files
+
+# PDF Processing
+PyPDF2>=3.0.0            # PDF validation and manipulation
+pypdfium2>=4.26.0        # Alternative PDF processing (more reliable)
+
+# Document Conversion
+docx2pdf>=0.1.8          # Convert DOCX to PDF for printing
+python-docx>=1.1.0       # DOCX file handling
+
+# Configuration & Logging
+python-json-logger>=2.0.7  # JSON formatted logging (optional)
+
+# Utility Libraries
+requests>=2.31.0         # HTTP requests (if needed for printer API)
+pillow>=10.1.0          # Image processing (future color support)
+
+# Development & Testing (optional)
+pytest>=7.4.3           # Unit testing framework
+pytest-cov>=4.1.0       # Test coverage reporting

@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Print Jobs (user data)
+print_jobs/*.pdf
+print_jobs/*.docx
+print_jobs/PRINTED/
+
+# Configuration (contains sensitive data)
+config/config.json
+
+# Keep config template for reference
+!config/config.json.template
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Windows Service
+*.pyd
