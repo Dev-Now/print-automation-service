@@ -5,7 +5,6 @@ Handles WiFi connection to Brother printer (WiFi Direct)
 
 import time
 import subprocess
-import re
 
 
 class WiFiManager:
@@ -15,6 +14,8 @@ class WiFiManager:
         self.config = config
         self.logger = logger
         self.printer_ssid = config.get_printer_config().get('wifi_ssid')
+        # Note: printer_password is stored in config for documentation/future use
+        # Current implementation relies on Windows saved WiFi profile (connect manually once)
         self.printer_password = config.get_printer_config().get('wifi_password')
         self.connection_timeout = config.get_printer_config().get('connection_timeout', 60)
         self.connected = False
@@ -74,10 +75,17 @@ class WiFiManager:
                 self.logger.warning(f"Printer WiFi '{self.printer_ssid}' not found. Is the printer on?")
                 return False
             
-            # Create WiFi profile if needed
-            self._create_wifi_profile()
+            # Check if WiFi profile exists in Windows
+            if not self._profile_exists():
+                self.logger.error(f"WiFi profile '{self.printer_ssid}' not found in Windows!")
+                self.logger.error("Please connect to the printer WiFi manually once to save the profile:")
+                self.logger.error("  1. Open Windows WiFi settings")
+                self.logger.error(f"  2. Connect to '{self.printer_ssid}'")
+                self.logger.error("  3. Enter the WiFi password")
+                self.logger.error("  4. Restart this service")
+                return False
             
-            # Connect to WiFi
+            # Connect to WiFi using saved profile
             result = subprocess.run(
                 ['netsh', 'wlan', 'connect', f'name={self.printer_ssid}'],
                 capture_output=True,
@@ -102,11 +110,25 @@ class WiFiManager:
             self.logger.error(f"Error connecting to WiFi: {e}")
             return False
     
-    def _create_wifi_profile(self):
-        """Create WiFi profile for printer connection"""
-        # TODO: Implement WiFi profile creation with XML
-        # This will create a persistent WiFi profile so Windows remembers the connection
-        pass
+    def _profile_exists(self):
+        """Check if WiFi profile exists in Windows"""
+        try:
+            result = subprocess.run(
+                ['netsh', 'wlan', 'show', 'profiles'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                # Check if printer SSID is in the list of saved profiles
+                return self.printer_ssid in result.stdout
+            
+            return False
+            
+        except Exception as e:
+            self.logger.warning(f"Could not check WiFi profiles: {e}")
+            return False
     
     def _set_connection_priority(self):
         """Set connection priority to prevent auto-disconnect"""
