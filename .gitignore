@@ -29,6 +29,7 @@ logs/
 print_jobs/*.pdf
 print_jobs/*.docx
 print_jobs/PRINTED/
+print_jobs/CONVERTED/
 print_jobs/config.json
 
 # Keep example files

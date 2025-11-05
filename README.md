@@ -105,8 +105,10 @@ sc query AutoPrintService
 
 1. **Turn on** your Brother MFC-L2750DW printer
 2. **Drop** PDF or DOCX files into the `print_jobs` folder
-3. **Wait** - Files print automatically with your configured settings
-4. **Done** - Printed files moved to `print_jobs/PRINTED` folder
+3. **DOCX files** are automatically converted to PDF before printing
+4. **Wait** - Files print automatically with your configured settings
+5. **Done** - Printed files moved to `print_jobs/PRINTED` folder
+6. **DOCX originals** moved to `print_jobs/CONVERTED` folder after conversion
 
 That's it! No manual WiFi connection or print dialog configuration needed.
 
@@ -274,7 +276,8 @@ auto-print/
 ├── config/
 │   └── config.json              # User configuration
 ├── print_jobs/                  # Drop files here to print
-│   └── PRINTED/                 # Archived printed files
+│   ├── PRINTED/                 # Archived printed files
+│   └── CONVERTED/               # Original DOCX files after conversion
 ├── logs/
 │   └── log.txt                  # Application logs
 ├── requirements.txt             # Python dependencies
