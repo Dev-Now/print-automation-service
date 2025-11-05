@@ -51,7 +51,14 @@ pip install -r requirements.txt
 
 ### 3. Configure the Service
 
-Edit `config/config.json` with your printer details:
+**Copy the configuration template:**
+
+```powershell
+# Copy template to create your config
+copy config\config.json.template config\config.json
+```
+
+**Edit `config/config.json` with your printer details:**
 
 ```json
 {
@@ -67,6 +74,9 @@ Edit `config/config.json` with your printer details:
 1. Turn on your Brother MFC-L2750DW
 2. On printer panel: Menu → Network → WLAN → Wi-Fi Direct
 3. Note the SSID and password
+4. Update `config/config.json` with these values
+
+**Note:** The `config.json` file contains your WiFi password and is excluded from version control for security.
 
 ### 4. Test the Service (Optional)
 
@@ -139,6 +149,18 @@ python uninstall_service.py
 ---
 
 ## Configuration
+
+The service uses `config/config.json` for all settings. A documented template is provided at `config/config.json.template`.
+
+### Quick Setup
+
+```powershell
+# Copy template and edit with your details
+copy config\config.json.template config\config.json
+notepad config\config.json
+```
+
+### Configuration Sections
 
 Edit `config/config.json` to customize behavior:
 

@@ -1,0 +1,104 @@
+{
+  "_comment": "Auto-Print Service Configuration Template",
+  "_description": "Copy this file to config.json and update with your printer details",
+  
+  "printer": {
+    "_comment": "Brother MFC-L2750DW printer configuration",
+    "wifi_ssid": "DIRECT-xx-Brother MFC-L2750DW",
+    "_wifi_ssid_help": "Your printer's WiFi Direct SSID (found in printer menu: Network > WLAN > Wi-Fi Direct)",
+    
+    "wifi_password": "your_printer_wifi_password",
+    "_wifi_password_help": "Your printer's WiFi Direct password (usually 8 digits, shown on printer panel)",
+    
+    "name": "Brother MFC-L2750DW",
+    "_name_help": "Printer name as it appears in Windows (used for discovery)",
+    
+    "discovery_timeout": 30,
+    "_discovery_timeout_help": "Seconds to wait when discovering printer on network",
+    
+    "connection_timeout": 60
+    "_connection_timeout_help": "Seconds to wait when connecting to printer WiFi"
+  },
+  
+  "print_settings": {
+    "_comment": "Default print settings applied to all jobs",
+    
+    "duplex": true,
+    "_duplex_help": "Print on both sides of paper (true/false)",
+    
+    "duplex_mode": "DuplexVertical",
+    "_duplex_mode_help": "DuplexVertical = flip on long edge, DuplexHorizontal = flip on short edge",
+    
+    "toner_save": true,
+    "_toner_save_help": "Enable toner save mode to reduce ink usage (true/false)",
+    
+    "color": false,
+    "_color_help": "Enable color printing (false = black & white only)",
+    
+    "copies": 1,
+    "_copies_help": "Number of copies to print by default",
+    
+    "paper_size": "A4"
+    "_paper_size_help": "Paper size: A4 or Letter"
+  },
+  
+  "paths": {
+    "_comment": "Directory paths (relative to project root)",
+    "print_jobs": "./print_jobs",
+    "_print_jobs_help": "Directory where you drop files to print",
+    
+    "archive": "./print_jobs/PRINTED",
+    "_archive_help": "Directory where successfully printed files are moved",
+    
+    "logs": "./logs"
+    "_logs_help": "Directory for log files"
+  },
+  
+  "behavior": {
+    "_comment": "Service behavior and timing settings",
+    
+    "job_timeout_minutes": 10,
+    "_job_timeout_help": "Maximum time to wait for a print job to complete",
+    
+    "max_retries": 3,
+    "_max_retries_help": "Maximum number of retry attempts for failed jobs",
+    
+    "check_interval_seconds": 5,
+    "_check_interval_help": "How often the service checks for new jobs and printer status",
+    
+    "job_monitor_interval_seconds": 5,
+    "_job_monitor_interval_help": "How often to check printer status while monitoring job completion",
+    
+    "convert_docx_to_pdf": true,
+    "_convert_docx_help": "Automatically convert DOCX files to PDF before printing",
+    
+    "allowed_extensions": [".pdf", ".docx"]
+    "_allowed_extensions_help": "File types that will be processed (others ignored)"
+  },
+  
+  "network": {
+    "_comment": "Network and WiFi management settings",
+    
+    "maintain_internet": true,
+    "_maintain_internet_help": "Keep internet connection via Ethernet while connected to printer WiFi",
+    
+    "wifi_check_interval_seconds": 30,
+    "_wifi_check_interval_help": "How often to verify WiFi connection to printer",
+    
+    "reconnect_attempts": 5
+    "_reconnect_attempts_help": "Number of WiFi reconnection attempts before giving up"
+  },
+  
+  "logging": {
+    "_comment": "Logging configuration",
+    
+    "level": "INFO",
+    "_level_help": "Log level: DEBUG, INFO, WARNING, ERROR",
+    
+    "max_file_size_mb": 10,
+    "_max_file_size_help": "Maximum log file size before rotation",
+    
+    "backup_count": 5
+    "_backup_count_help": "Number of old log files to keep"
+  }
+}
