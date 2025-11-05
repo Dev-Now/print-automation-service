@@ -33,10 +33,11 @@ class PrintJob:
 class PrintQueueManager:
     """Manages the print job queue"""
     
-    def __init__(self, config, logger, printer_manager):
+    def __init__(self, config, logger, printer_manager, conversion_manager):
         self.config = config
         self.logger = logger
         self.printer = printer_manager
+        self.converter = conversion_manager
         self.queue = deque()
         self.current_job = None
         
@@ -44,6 +45,7 @@ class PrintQueueManager:
         self.max_retries = config.get_behavior().get('max_retries', 3)
         self.job_timeout_minutes = config.get_behavior().get('job_timeout_minutes', 10)
         self.paths = config.get_paths()
+        self.allowed_extensions = config.get_behavior().get('allowed_extensions', ['.pdf', '.docx'])
         
         # Get absolute paths
         project_root = Path(__file__).parent.parent
@@ -57,6 +59,59 @@ class PrintQueueManager:
         # Cache for document-specific settings
         self._doc_settings_cache = None
         self._doc_settings_mtime = 0
+        
+        # Discover and queue existing files
+        self._discover_existing_files()
+    
+    def _discover_existing_files(self):
+        """Discover and queue existing PDF/DOCX files in print_jobs directory"""
+        try:
+            if not self.print_jobs_path.exists():
+                self.logger.warning(f"Print jobs directory does not exist: {self.print_jobs_path}")
+                return
+            
+            # Find all files with allowed extensions
+            existing_files = []
+            for ext in self.allowed_extensions:
+                existing_files.extend(self.print_jobs_path.glob(f"*{ext}"))
+            
+            if existing_files:
+                self.logger.info(f"Discovered {len(existing_files)} existing file(s) in print_jobs directory")
+                for filepath in sorted(existing_files):  # Sort for consistent ordering
+                    if filepath.is_file():
+                        self._process_discovered_file(filepath)
+            else:
+                self.logger.info("No existing files found in print_jobs directory")
+                
+        except Exception as e:
+            self.logger.error(f"Error discovering existing files: {e}")
+    
+    def _process_discovered_file(self, filepath):
+        """Process a discovered file - handle DOCX conversion or queue PDF directly"""
+        try:
+            # Handle DOCX files
+            if filepath.suffix.lower() == '.docx':
+                if self.converter.is_conversion_enabled():
+                    self.logger.info(f"Converting discovered DOCX file: {filepath.name}")
+                    pdf_path = self.converter.convert_docx_to_pdf(filepath)
+                    
+                    if pdf_path:
+                        self.logger.info(f"Converted {filepath.name} to {pdf_path.name}")
+                        self.add_job(pdf_path)
+                        
+                        # Handle original DOCX file
+                        self.converter.handle_original_docx(filepath)
+                    else:
+                        self.logger.error(f"Failed to convert {filepath.name}, skipping")
+                else:
+                    self.logger.warning(f"DOCX conversion disabled, skipping: {filepath.name}")
+            else:
+                # PDF file
+                self.logger.info(f"Queueing existing file: {filepath.name}")
+                self.add_job(filepath)
+                
+        except Exception as e:
+            self.logger.error(f"Error processing discovered file {filepath.name}: {e}")
     
     def add_job(self, filepath):
         """Add a new print job to the queue"""

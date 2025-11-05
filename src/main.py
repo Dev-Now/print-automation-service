@@ -15,6 +15,7 @@ from utils.logger import setup_logger
 from config_manager import ConfigManager
 from wifi_manager import WiFiManager
 from printer_manager import PrinterManager
+from conversion_manager import ConversionManager
 from print_queue_manager import PrintQueueManager
 from file_watcher import FileWatcher
 
@@ -28,6 +29,7 @@ class AutoPrintService:
         self.config = None
         self.wifi_manager = None
         self.printer_manager = None
+        self.conversion_manager = None
         self.queue_manager = None
         self.file_watcher = None
         
@@ -49,8 +51,9 @@ class AutoPrintService:
             # Initialize components
             self.wifi_manager = WiFiManager(self.config, self.logger)
             self.printer_manager = PrinterManager(self.config, self.logger)
-            self.queue_manager = PrintQueueManager(self.config, self.logger, self.printer_manager)
-            self.file_watcher = FileWatcher(self.config, self.logger, self.queue_manager)
+            self.conversion_manager = ConversionManager(self.config, self.logger)
+            self.queue_manager = PrintQueueManager(self.config, self.logger, self.printer_manager, self.conversion_manager)
+            self.file_watcher = FileWatcher(self.config, self.logger, self.queue_manager, self.conversion_manager)
             
             # Start monitoring
             self.running = True
