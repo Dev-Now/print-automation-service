@@ -26,6 +26,7 @@ A Windows service that automatically connects to your Brother printer via WiFi D
 - **Printer**: Brother MFC-L2750DW with WiFi Direct enabled
 - **Network**: Ethernet connection (for maintaining internet while connected to printer WiFi)
 - **Drivers**: Brother MFC-L2750DW printer drivers installed
+- **Pandoc**: Required for DOCX to PDF conversion
 
 ---
 
@@ -39,17 +40,37 @@ git clone <repository-url> auto-print
 cd auto-print
 ```
 
-### 2. Install Python Dependencies
+### 2. Install System Dependencies
+
+**Install Pandoc (required for DOCX conversion):**
+
+```powershell
+# Option 1: Using Chocolatey
+choco install pandoc
+
+# Option 2: Using Winget
+winget install pandoc
+
+# Option 3: Manual download from https://pandoc.org/installing.html
+```
+
+**Optional - Install wkhtmltopdf (for better PDF formatting):**
+
+```powershell
+choco install wkhtmltopdf
+```
+
+### 3. Install Python Dependencies
 
 ```powershell
 # Activate virtual environment
 .\venv\Scripts\Activate.ps1
 
 # Install required packages
-pip install -r requirements.txt
+pip install -r Requirements.txt
 ```
 
-### 3. Configure the Service
+### 4. Configure the Service
 
 **Copy the configuration template:**
 
@@ -78,7 +99,7 @@ copy config\config.json.template config\config.json
 
 **Note:** The `config.json` file contains your WiFi password and is excluded from version control for security.
 
-### 4. Test the Service (Optional)
+### 5. Test the Service (Optional)
 
 Before installing as a service, test it manually:
 
@@ -86,11 +107,13 @@ Before installing as a service, test it manually:
 python src\main.py
 ```
 
-- Drop a PDF file into the `print_jobs` folder
-- Check if it prints automatically
+- Drop a PDF or DOCX file into the `print_jobs` folder
+- Check if it converts/prints automatically
 - Press `Ctrl+C` to stop
 
-### 5. Install as Windows Service
+**Note:** Make sure pandoc is installed and accessible from your PATH before testing DOCX conversion.
+
+### 6. Install as Windows Service
 
 ```powershell
 # Run as Administrator
@@ -400,8 +423,7 @@ This project is provided as-is for personal use.
 Built with:
 - [PyWin32](https://github.com/mhammond/pywin32) - Windows API access
 - [Watchdog](https://github.com/gorakhargosh/watchdog) - File system monitoring
-- [PyPDF2](https://github.com/py-pdf/PyPDF2) - PDF processing
-- [docx2pdf](https://github.com/AlJohri/docx2pdf) - DOCX conversion
+- [Pandoc](https://pandoc.org/) - DOCX to PDF conversion
 
 ---
 

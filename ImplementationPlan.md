@@ -46,8 +46,7 @@ auto-print/
   - `pywin32` (win32print, win32api, win32service) - Windows APIs
   - `pywifi` - WiFi management
   - `watchdog` - File system monitoring
-  - `PyPDF2` or `pypdfium2` - PDF validation
-  - `docx2pdf` - DOCX to PDF conversion
+  - `pandoc` - DOCX to PDF conversion (system dependency)
 - **Service Manager**: NSSM or pywin32 service wrapper
 
 ---
@@ -199,8 +198,9 @@ printer_handle = win32print.OpenPrinter(printer_name)
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Using docx2pdf for conversion
-from docx2pdf import convert
+# Using pandoc via subprocess for DOCX conversion
+import subprocess
+subprocess.run(['pandoc', 'input.docx', '-o', 'output.pdf'])
 ```
 
 #### Deliverables:

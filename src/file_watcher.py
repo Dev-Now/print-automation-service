@@ -1,19 +1,27 @@
 """
 File Watcher
-Monitors print_jobs directory for new files
+Monitors directory for new files and adds them to print queue
 """
 
 import time
+import subprocess
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from utils.helpers import is_allowed_file
 
-try:
-    from docx2pdf import convert
-    DOCX2PDF_AVAILABLE = True
-except ImportError:
-    DOCX2PDF_AVAILABLE = False
+
+def check_pandoc_available():
+    """Check if pandoc is installed and available"""
+    try:
+        result = subprocess.run(['pandoc', '--version'], 
+                              capture_output=True, text=True, timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
+PANDOC_AVAILABLE = check_pandoc_available()
 
 
 class PrintJobHandler(FileSystemEventHandler):
@@ -66,10 +74,11 @@ class PrintJobHandler(FileSystemEventHandler):
             self.queue.add_job(filepath)
     
     def _convert_docx_to_pdf(self, docx_path):
-        """Convert DOCX file to PDF"""
+        """Convert DOCX file to PDF using pandoc"""
         try:
-            if not DOCX2PDF_AVAILABLE:
-                self.logger.error("docx2pdf library not available. Install with: pip install docx2pdf")
+            if not PANDOC_AVAILABLE:
+                self.logger.error("Pandoc not available. Please install pandoc from https://pandoc.org/installing.html")
+                self.logger.error("Or install via chocolatey: choco install pandoc")
                 return None
             
             # Generate PDF filename in the same directory
@@ -79,17 +88,53 @@ class PrintJobHandler(FileSystemEventHandler):
             if pdf_path.exists():
                 self.logger.warning(f"PDF already exists: {pdf_path.name}, overwriting...")
             
-            self.logger.info(f"Converting {docx_path.name} to PDF...")
+            self.logger.info(f"Converting {docx_path.name} to PDF using pandoc...")
             
-            # Convert DOCX to PDF
-            convert(str(docx_path), str(pdf_path))
+            # Use pandoc to convert DOCX to PDF
+            # --pdf-engine=wkhtmltopdf can be used for better formatting if installed
+            # For now, use default engine
+            cmd = [
+                'pandoc',
+                str(docx_path),
+                '-o', str(pdf_path),
+                '--pdf-engine=wkhtmltopdf',  # Better formatting
+                '--margin-top=20mm',
+                '--margin-bottom=20mm', 
+                '--margin-left=20mm',
+                '--margin-right=20mm'
+            ]
             
-            # Verify the PDF was created
-            if pdf_path.exists() and pdf_path.stat().st_size > 0:
-                self.logger.info(f"Successfully converted to {pdf_path.name}")
-                return pdf_path
-            else:
-                self.logger.error(f"Conversion failed - PDF not created or empty")
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                
+                if result.returncode == 0:
+                    # Verify the PDF was created
+                    if pdf_path.exists() and pdf_path.stat().st_size > 0:
+                        self.logger.info(f"Successfully converted to {pdf_path.name}")
+                        return pdf_path
+                    else:
+                        self.logger.error(f"Pandoc conversion failed - PDF not created or empty")
+                        return None
+                else:
+                    # If wkhtmltopdf is not available, try with default engine
+                    self.logger.warning("wkhtmltopdf not available, trying with default PDF engine...")
+                    cmd_fallback = [
+                        'pandoc',
+                        str(docx_path),
+                        '-o', str(pdf_path)
+                    ]
+                    
+                    result = subprocess.run(cmd_fallback, capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0 and pdf_path.exists() and pdf_path.stat().st_size > 0:
+                        self.logger.info(f"Successfully converted to {pdf_path.name} (basic formatting)")
+                        return pdf_path
+                    else:
+                        self.logger.error(f"Pandoc conversion failed: {result.stderr}")
+                        return None
+                        
+            except subprocess.TimeoutExpired:
+                self.logger.error("Pandoc conversion timed out")
                 return None
                 
         except Exception as e:
