@@ -29,6 +29,10 @@ logs/
 print_jobs/*.pdf
 print_jobs/*.docx
 print_jobs/PRINTED/
+print_jobs/config.json
+
+# Keep example files
+!print_jobs/config.json.example
 
 # Configuration (contains sensitive data)
 config/config.json

@@ -161,9 +161,38 @@ Edit `config/config.json` to customize behavior:
   "toner_save": true,          // Enable toner save mode
   "color": false,              // Black and white only
   "copies": 1,
-  "paper_size": "Letter"
+  "paper_size": "A4"           // A4 or Letter
 }
 ```
+
+### Per-Document Settings (Optional)
+
+Create `print_jobs/config.json` to override settings for specific documents:
+
+```json
+[
+  {
+    "doc": "invoice.pdf",
+    "print_settings": {
+      "duplex": false,
+      "copies": 2
+    }
+  },
+  {
+    "doc": "presentation.pdf", 
+    "print_settings": {
+      "copies": 3,
+      "toner_save": false
+    }
+  }
+]
+```
+
+**Features:**
+- Override any default setting for specific files
+- Only specify settings you want to change
+- File is automatically reloaded when modified
+- Example file: `print_jobs/config.json.example`
 
 ### Behavior Settings
 

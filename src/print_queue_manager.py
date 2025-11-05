@@ -4,6 +4,7 @@ Manages print job queue, retries, and file archival
 """
 
 import time
+import json
 from pathlib import Path
 from datetime import datetime
 from collections import deque
@@ -23,6 +24,7 @@ class PrintJob:
         self.queued_time = datetime.now()
         self.start_time = None
         self.error = None
+        self.custom_settings = None  # Per-document print settings
     
     def __repr__(self):
         return f"PrintJob({self.filename}, attempts={self.attempts}, status={self.status})"
@@ -47,14 +49,78 @@ class PrintQueueManager:
         project_root = Path(__file__).parent.parent
         self.archive_path = project_root / self.paths.get('archive')
         self.archive_path.mkdir(parents=True, exist_ok=True)
+        
+        # Path to per-document config file
+        self.print_jobs_path = project_root / self.paths.get('print_jobs')
+        self.doc_config_path = self.print_jobs_path / 'config.json'
+        
+        # Cache for document-specific settings
+        self._doc_settings_cache = None
+        self._doc_settings_mtime = 0
     
     def add_job(self, filepath):
         """Add a new print job to the queue"""
         job = PrintJob(filepath)
         job.max_attempts = self.max_retries
+        
+        # Load per-document settings if available
+        job.custom_settings = self._get_document_settings(job.filename)
+        if job.custom_settings:
+            self.logger.info(f"Loaded custom settings for {job.filename}: {job.custom_settings}")
+        
         self.queue.append(job)
         log_print_job(self.logger, job.filename, 'QUEUED')
         self.logger.info(f"Queue size: {len(self.queue)}")
+    
+    def _get_document_settings(self, filename):
+        """Get custom print settings for a specific document"""
+        try:
+            # Check if config file exists
+            if not self.doc_config_path.exists():
+                return None
+            
+            # Check if we need to reload the config (file modified)
+            current_mtime = self.doc_config_path.stat().st_mtime
+            if current_mtime != self._doc_settings_mtime:
+                self._load_document_settings()
+                self._doc_settings_mtime = current_mtime
+            
+            # Find settings for this document
+            if self._doc_settings_cache:
+                for doc_config in self._doc_settings_cache:
+                    if doc_config.get('doc') == filename:
+                        return doc_config.get('print_settings', {})
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Error loading document settings: {e}")
+            return None
+    
+    def _load_document_settings(self):
+        """Load document-specific settings from config file"""
+        try:
+            with open(self.doc_config_path, 'r', encoding='utf-8') as f:
+                self._doc_settings_cache = json.load(f)
+            
+            # Validate structure
+            if not isinstance(self._doc_settings_cache, list):
+                self.logger.error("Document config must be an array of objects")
+                self._doc_settings_cache = None
+                return
+            
+            # Log loaded configs
+            doc_count = len(self._doc_settings_cache)
+            if doc_count > 0:
+                docs = [cfg.get('doc', 'unnamed') for cfg in self._doc_settings_cache]
+                self.logger.info(f"Loaded settings for {doc_count} documents: {docs}")
+            
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in document config: {e}")
+            self._doc_settings_cache = None
+        except Exception as e:
+            self.logger.error(f"Error reading document config: {e}")
+            self._doc_settings_cache = None
     
     def process_queue(self):
         """Process the next job in the queue"""
@@ -93,8 +159,8 @@ class PrintQueueManager:
                 max_attempts=job.max_attempts
             )
             
-            # Send to printer
-            success = self.printer.print_file(job.filepath)
+            # Send to printer with custom settings
+            success = self.printer.print_file(job.filepath, job.custom_settings)
             
             if success:
                 # Wait a moment then mark as success

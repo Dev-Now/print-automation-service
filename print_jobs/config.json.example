@@ -1,0 +1,24 @@
+[
+  {
+    "doc": "invoice.pdf",
+    "print_settings": {
+      "duplex": false,
+      "copies": 2
+    }
+  },
+  {
+    "doc": "report_draft.pdf",
+    "print_settings": {
+      "toner_save": true,
+      "duplex": false
+    }
+  },
+  {
+    "doc": "presentation.pdf",
+    "print_settings": {
+      "duplex": true,
+      "copies": 3,
+      "toner_save": false
+    }
+  }
+]
