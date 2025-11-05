@@ -69,7 +69,7 @@ class AutoPrintService:
     
     def run_loop(self):
         """Main service loop"""
-        check_interval = self.config.get('behavior', {}).get('check_interval_seconds', 5)
+        check_interval = self.config.get('network', {}).get('wifi_check_interval_seconds', 10)
         
         while self.running:
             try:

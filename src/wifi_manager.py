@@ -48,6 +48,7 @@ class WiFiManager:
     def scan_networks(self):
         """Scan for available WiFi networks"""
         try:
+            self.logger.debug("Scanning for WiFi networks...")
             result = subprocess.run(
                 ['netsh', 'wlan', 'show', 'networks'],
                 capture_output=True,
@@ -55,11 +56,23 @@ class WiFiManager:
                 timeout=10
             )
             
-            if result.returncode == 0:
-                # Check if printer SSID is available
-                return self.printer_ssid in result.stdout
+            self.logger.debug(f"netsh command return code: {result.returncode}")
+            if result.stderr:
+                self.logger.debug(f"netsh stderr: {result.stderr}")
             
-            return False
+            if result.returncode == 0:
+                # Log the full output for debugging
+                self.logger.debug(f"Available networks output:\n{result.stdout}")
+                
+                # Check if printer SSID is available
+                networks_found = self.printer_ssid in result.stdout
+                self.logger.debug(f"Looking for SSID: '{self.printer_ssid}'")
+                self.logger.debug(f"SSID found in output: {networks_found}")
+                
+                return networks_found
+            else:
+                self.logger.error(f"netsh command failed with return code: {result.returncode}")
+                return False
             
         except Exception as e:
             self.logger.error(f"Error scanning WiFi networks: {e}")
