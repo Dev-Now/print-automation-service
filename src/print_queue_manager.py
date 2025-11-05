@@ -163,16 +163,88 @@ class PrintQueueManager:
             success = self.printer.print_file(job.filepath, job.custom_settings)
             
             if success:
-                # Wait a moment then mark as success
-                # TODO: Implement actual job completion monitoring
-                time.sleep(2)
-                self._handle_job_success(job)
+                # Monitor job completion with printer status polling
+                completion_result = self._monitor_job_completion(job)
+                if completion_result == "SUCCESS":
+                    self._handle_job_success(job)
+                elif completion_result == "TIMEOUT":
+                    self._handle_job_failure("Print job timeout - printer did not complete job within time limit")
+                else:  # ERROR
+                    self._handle_job_failure(f"Printer error during printing: {completion_result}")
             else:
                 self._handle_job_failure("Failed to submit print job")
                 
         except Exception as e:
             self.logger.error(f"Error printing job: {e}", exc_info=True)
             self._handle_job_failure(str(e))
+    
+    def _monitor_job_completion(self, job):
+        """
+        Monitor printer status until job completes, fails, or times out
+        
+        Returns:
+            "SUCCESS" - Job completed successfully
+            "TIMEOUT" - Job timed out (10 minutes)
+            "ERROR_TYPE" - Specific printer error (e.g., "Paper Jam", "Out of Paper")
+        """
+        self.logger.info(f"Monitoring print job completion: {job.filename}")
+        
+        start_time = datetime.now()
+        timeout_seconds = self.job_timeout_minutes * 60
+        check_interval = self.config.get_behavior().get('job_monitor_interval_seconds', 5)
+        
+        # Initial wait to let the job start processing
+        time.sleep(3)
+        
+        while True:
+            try:
+                # Check if we've exceeded the timeout
+                elapsed = (datetime.now() - start_time).total_seconds()
+                if elapsed > timeout_seconds:
+                    self.logger.warning(f"Job monitoring timeout after {self.job_timeout_minutes} minutes")
+                    return "TIMEOUT"
+                
+                # Get current printer status
+                status = self.printer.get_printer_status()
+                self.logger.debug(f"Printer status: {status} (elapsed: {elapsed:.1f}s)")
+                
+                # Check for immediate error conditions
+                error_statuses = [
+                    "Paper Jam", "Paper Out", "Paper Problem", 
+                    "Offline", "Error", "Manual Feed Required"
+                ]
+                
+                if status in error_statuses:
+                    self.logger.error(f"Printer error detected: {status}")
+                    return status
+                
+                # Check if printer is ready (potentially job completed)
+                if status == "Ready":
+                    # Additional check: see if there are any jobs in the printer queue
+                    if self._printer_queue_empty():
+                        self.logger.info(f"Job completed successfully after {elapsed:.1f}s")
+                        return "SUCCESS"
+                    else:
+                        self.logger.debug("Printer ready but jobs still in queue")
+                
+                # Wait before next check
+                time.sleep(check_interval)
+                
+            except Exception as e:
+                self.logger.error(f"Error monitoring job completion: {e}")
+                # Continue monitoring despite errors, but log them
+                time.sleep(check_interval)
+    
+    def _printer_queue_empty(self):
+        """Check if printer queue is empty (no pending jobs)"""
+        try:
+            # Get print jobs for this printer
+            jobs = self.printer.get_print_queue_jobs()
+            return len(jobs) == 0
+        except Exception as e:
+            self.logger.debug(f"Could not check printer queue: {e}")
+            # If we can't check the queue, assume it's empty and rely on printer status
+            return True
     
     def _handle_job_success(self, job):
         """Handle successful print job"""

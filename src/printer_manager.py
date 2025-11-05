@@ -229,6 +229,33 @@ class PrinterManager:
         status = self.get_printer_status()
         return status == "Ready"
     
+    def get_print_queue_jobs(self):
+        """Get list of jobs currently in printer queue"""
+        try:
+            if not self.printer_handle:
+                return []
+            
+            # Enumerate print jobs for this printer
+            jobs = []
+            try:
+                job_info = win32print.EnumJobs(self.printer_handle, 0, -1, 1)
+                for job in job_info:
+                    jobs.append({
+                        'job_id': job.get('JobId', 0),
+                        'document': job.get('pDocument', ''),
+                        'status': job.get('Status', 0),
+                        'pages': job.get('TotalPages', 0)
+                    })
+            except Exception as enum_error:
+                # EnumJobs might fail if no jobs or access denied
+                self.logger.debug(f"Could not enumerate jobs: {enum_error}")
+            
+            return jobs
+            
+        except Exception as e:
+            self.logger.debug(f"Error getting print queue jobs: {e}")
+            return []
+    
     def close(self):
         """Close printer connection"""
         if self.printer_handle:
