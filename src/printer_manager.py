@@ -5,6 +5,7 @@ Discovers and communicates with Brother MFC-L2750DW printer
 
 import win32print
 import win32api
+import win32gui
 from pathlib import Path
 
 
@@ -104,7 +105,7 @@ class PrinterManager:
         """Apply print settings and send file to printer"""
         try:
             # Get printer device context
-            hdc = win32print.CreateDC("", self.printer_name, "")
+            hdc = win32gui.CreateDC("WINSPOOL", self.printer_name, None)
             if not hdc:
                 self.logger.error("Failed to create printer device context")
                 return False
@@ -138,7 +139,7 @@ class PrinterManager:
                 return True
                 
             finally:
-                win32print.DeleteDC(hdc)
+                win32gui.DeleteDC(hdc)
                 
         except Exception as e:
             self.logger.error(f"Error applying print settings: {e}")
