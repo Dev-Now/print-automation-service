@@ -97,7 +97,8 @@ class PrintQueueManager:
                     
                     if pdf_path:
                         self.logger.info(f"Converted {filepath.name} to {pdf_path.name}")
-                        self.add_job(pdf_path)
+
+                        # Do not queue anything here; the watcher will pick up the new PDF file
                         
                         # Handle original DOCX file
                         self.converter.handle_original_docx(filepath)

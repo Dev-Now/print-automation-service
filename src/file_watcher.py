@@ -47,7 +47,7 @@ class PrintJobHandler(FileSystemEventHandler):
                 pdf_path = self.converter.convert_docx_to_pdf(filepath)
                 if pdf_path:
                     self.logger.info(f"Converted {filepath.name} to {pdf_path.name}")
-                    self.queue.add_job(pdf_path)
+                    # we don't have to add the PDF to the queue, the watcher will catch it automatically!
                     # Move original DOCX file to CONVERTED folder
                     self.converter.handle_original_docx(filepath)
                 else:
