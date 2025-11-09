@@ -76,6 +76,16 @@
     "_allowed_extensions_help": "File types that will be processed (others ignored)"
   },
   
+  "gotenberg": {
+    "_comment": "Gotenberg document conversion service settings",
+    
+    "url": "http://localhost:3000",
+    "_url_help": "URL of Gotenberg service (Docker container). Run: docker run -d -p 3000:3000 gotenberg/gotenberg:8",
+    
+    "timeout": 30
+    "_timeout_help": "Maximum seconds to wait for document conversion"
+  },
+  
   "network": {
     "_comment": "Network and WiFi management settings",
     

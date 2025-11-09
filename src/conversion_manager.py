@@ -1,21 +1,24 @@
 """
 Conversion Manager
-Handles document conversion (DOCX to PDF) using Pandoc
+Handles document conversion (DOCX to PDF) using Gotenberg
 """
 
-import subprocess
+import requests
 from pathlib import Path
 from datetime import datetime
 from utils.helpers import safe_move_file
 
 
 class ConversionManager:
-    """Manages document conversion operations"""
+    """Manages document conversion operations using Gotenberg API"""
     
     def __init__(self, config, logger):
         self.config = config
         self.logger = logger
-        self.pandoc_available = self._check_pandoc_available()
+        
+        # Get Gotenberg URL from config
+        self.gotenberg_url = config.get('gotenberg', {}).get('url', 'http://localhost:3000')
+        self.gotenberg_timeout = config.get('gotenberg', {}).get('timeout', 30)
         
         # Get paths
         project_root = Path(__file__).parent.parent
@@ -24,24 +27,29 @@ class ConversionManager:
         self.converted_dir = self.print_jobs_path / 'CONVERTED'
         self.converted_dir.mkdir(exist_ok=True)
         
-        # Log pandoc availability
-        if self.pandoc_available:
-            self.logger.info("Pandoc is available for DOCX conversion")
+        # Check Gotenberg availability
+        self.gotenberg_available = self._check_gotenberg_available()
+        
+        # Log Gotenberg availability
+        if self.gotenberg_available:
+            self.logger.info(f"Gotenberg is available at {self.gotenberg_url}")
         else:
-            self.logger.warning("Pandoc not found - DOCX conversion will not be available")
+            self.logger.warning(f"Gotenberg not available at {self.gotenberg_url} - DOCX conversion will not be available")
+            self.logger.warning("Please ensure Gotenberg Docker container is running:")
+            self.logger.warning("  docker run -d -p 3000:3000 gotenberg/gotenberg:8")
     
-    def _check_pandoc_available(self):
-        """Check if pandoc is installed and available"""
+    def _check_gotenberg_available(self):
+        """Check if Gotenberg service is available"""
         try:
-            result = subprocess.run(['pandoc', '--version'], 
-                                  capture_output=True, text=True, timeout=5)
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+            response = requests.get(f"{self.gotenberg_url}/health", timeout=5)
+            return response.status_code == 200
+        except Exception as e:
+            self.logger.debug(f"Gotenberg health check failed: {e}")
             return False
     
     def convert_docx_to_pdf(self, docx_path):
         """
-        Convert DOCX file to PDF using pandoc
+        Convert DOCX file to PDF using Gotenberg API
         
         Args:
             docx_path: Path to DOCX file
@@ -50,9 +58,10 @@ class ConversionManager:
             Path to converted PDF file, or None if conversion failed
         """
         try:
-            if not self.pandoc_available:
-                self.logger.error("Pandoc not available. Please install pandoc from https://pandoc.org/installing.html")
-                self.logger.error("Or install via chocolatey: choco install pandoc")
+            if not self.gotenberg_available:
+                self.logger.error("Gotenberg service not available")
+                self.logger.error("Please ensure Gotenberg is running:")
+                self.logger.error("  docker run -d -p 3000:3000 gotenberg/gotenberg:8")
                 return None
             
             # Generate PDF filename in the same directory
@@ -62,137 +71,58 @@ class ConversionManager:
             if pdf_path.exists():
                 self.logger.warning(f"PDF already exists: {pdf_path.name}, overwriting...")
             
-            self.logger.info(f"Converting {docx_path.name} to PDF using pandoc...")
+            self.logger.info(f"Converting {docx_path.name} to PDF using Gotenberg...")
             
-            # Try with wkhtmltopdf engine first for better formatting
-            success = self._convert_with_wkhtmltopdf(docx_path, pdf_path)
+            # Prepare the file for upload
+            with open(docx_path, 'rb') as f:
+                files = {
+                    'files': (docx_path.name, f, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                }
+                
+                # Set PDF conversion options
+                data = {
+                    'pdfFormat': 'PDF/A-1a',  # Use PDF/A format for better compatibility
+                    'landscape': 'false',
+                }
+                
+                # Call Gotenberg API
+                endpoint = f"{self.gotenberg_url}/forms/libreoffice/convert"
+                response = requests.post(
+                    endpoint,
+                    files=files,
+                    data=data,
+                    timeout=self.gotenberg_timeout
+                )
             
-            if not success:
-                # Fallback to default engine
-                success = self._convert_with_default_engine(docx_path, pdf_path)
-            
-            if success and pdf_path.exists() and pdf_path.stat().st_size > 0:
-                self.logger.info(f"Successfully converted to {pdf_path.name}")
-                return pdf_path
+            # Check response
+            if response.status_code == 200:
+                # Save the PDF
+                with open(pdf_path, 'wb') as f:
+                    f.write(response.content)
+                
+                if pdf_path.exists() and pdf_path.stat().st_size > 0:
+                    self.logger.info(f"Successfully converted to {pdf_path.name}")
+                    return pdf_path
+                else:
+                    self.logger.error("Conversion failed - PDF not created or empty")
+                    return None
             else:
-                self.logger.error(f"Conversion failed - PDF not created or empty")
+                self.logger.error(f"Gotenberg conversion failed with status {response.status_code}")
+                self.logger.error(f"Response: {response.text[:200]}")
                 return None
                 
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Conversion timed out after {self.gotenberg_timeout} seconds")
+            return None
+        except requests.exceptions.ConnectionError:
+            self.logger.error("Could not connect to Gotenberg service")
+            self.logger.error("Please ensure Gotenberg is running:")
+            self.logger.error("  docker run -d -p 3000:3000 gotenberg/gotenberg:8")
+            return None
         except Exception as e:
             self.logger.error(f"Error converting DOCX to PDF: {e}")
             return None
-    
-    def _convert_with_wkhtmltopdf(self, docx_path, pdf_path):
-        """Try conversion with wkhtmltopdf engine"""
-        try:
-            # First try: pandoc with wkhtmltopdf and margins
-            cmd = [
-                'pandoc',
-                str(docx_path),
-                '-o', str(pdf_path),
-                '--pdf-engine=wkhtmltopdf',
-                '--pdf-engine-opt=--margin-top',
-                '--pdf-engine-opt=20mm',
-                '--pdf-engine-opt=--margin-bottom',
-                '--pdf-engine-opt=20mm',
-                '--pdf-engine-opt=--margin-left',
-                '--pdf-engine-opt=20mm',
-                '--pdf-engine-opt=--margin-right',
-                '--pdf-engine-opt=20mm'
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
-                self.logger.debug("Converted with wkhtmltopdf engine (with margins)")
-                return True
-            
-            # Second try: simpler command without margins
-            self.logger.debug("Trying wkhtmltopdf without custom margins...")
-            cmd_simple = [
-                'pandoc',
-                str(docx_path),
-                '-o', str(pdf_path),
-                '--pdf-engine=wkhtmltopdf'
-            ]
-            
-            result = subprocess.run(cmd_simple, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
-                self.logger.debug("Converted with wkhtmltopdf engine (default margins)")
-                return True
-            else:
-                self.logger.debug(f"wkhtmltopdf failed: {result.stderr}")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            self.logger.error("Pandoc conversion timed out")
-            return False
-        except Exception as e:
-            self.logger.debug(f"wkhtmltopdf conversion failed: {e}")
-            return False
-    
-    def _convert_with_default_engine(self, docx_path, pdf_path):
-        """Fallback conversion using HTML intermediate with wkhtmltopdf"""
-        try:
-            # Convert DOCX to HTML first (always works with pandoc alone)
-            self.logger.info("Converting via HTML intermediate...")
-            html_path = docx_path.with_suffix('.html')
-            
-            cmd_html = [
-                'pandoc',
-                str(docx_path),
-                '-o', str(html_path),
-                '--standalone'
-            ]
-            
-            result = subprocess.run(cmd_html, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode != 0:
-                self.logger.error(f"DOCX to HTML conversion failed: {result.stderr}")
-                return False
-            
-            # Convert HTML to PDF using wkhtmltopdf directly
-            self.logger.debug("Converting HTML to PDF with wkhtmltopdf...")
-            cmd_pdf = [
-                'wkhtmltopdf',
-                '--quiet',
-                '--margin-top', '20mm',
-                '--margin-bottom', '20mm',
-                '--margin-left', '20mm',
-                '--margin-right', '20mm',
-                str(html_path),
-                str(pdf_path)
-            ]
-            
-            result = subprocess.run(cmd_pdf, capture_output=True, text=True, timeout=30)
-            
-            # Clean up HTML file
-            try:
-                html_path.unlink()
-            except:
-                pass
-            
-            if result.returncode == 0:
-                self.logger.info("Converted successfully via HTML intermediate")
-                return True
-            else:
-                self.logger.error(f"wkhtmltopdf conversion failed: {result.stderr}")
-                self.logger.error("Please ensure wkhtmltopdf is installed: choco install wkhtmltopdf")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            self.logger.error("Conversion timed out")
-            # Clean up HTML file if it exists
-            try:
-                if html_path.exists():
-                    html_path.unlink()
-            except:
-                pass
-            return False
-        except Exception as e:
-            self.logger.error(f"Conversion failed: {e}")
-            return False
+
     
     def handle_original_docx(self, docx_path):
         """
@@ -229,5 +159,5 @@ class ConversionManager:
         return self.config.get_behavior().get('convert_docx_to_pdf', True)
     
     def is_available(self):
-        """Check if conversion is available (pandoc installed)"""
-        return self.pandoc_available
+        """Check if conversion is available (Gotenberg service is running)"""
+        return self.gotenberg_available

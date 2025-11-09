@@ -26,7 +26,7 @@ A Windows service that automatically connects to your Brother printer via WiFi D
 - **Printer**: Brother MFC-L2750DW with WiFi Direct enabled
 - **Network**: Ethernet connection (for maintaining internet while connected to printer WiFi)
 - **Drivers**: Brother MFC-L2750DW printer drivers installed
-- **Pandoc**: Required for DOCX to PDF conversion
+- **Docker**: Docker Desktop for Windows (for DOCX to PDF conversion via Gotenberg)
 
 ---
 
@@ -42,23 +42,17 @@ cd auto-print
 
 ### 2. Install System Dependencies
 
-**Install Pandoc (required for DOCX conversion):**
+**Install Docker Desktop:**
+
+1. Download Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/)
+2. Install and start Docker Desktop
+3. Start the Gotenberg container for document conversion:
 
 ```powershell
-# Option 1: Using Chocolatey
-choco install pandoc
-
-# Option 2: Using Winget
-winget install pandoc
-
-# Option 3: Manual download from https://pandoc.org/installing.html
+docker run -d -p 3000:3000 --name gotenberg --restart unless-stopped gotenberg/gotenberg:8
 ```
 
-**Optional - Install wkhtmltopdf (for better PDF formatting):**
-
-```powershell
-choco install wkhtmltopdf
-```
+For detailed Gotenberg setup instructions, see [GOTENBERG_SETUP.md](GOTENBERG_SETUP.md).
 
 ### 3. Install Python Dependencies
 
@@ -111,7 +105,7 @@ python src\main.py
 - Check if it converts/prints automatically
 - Press `Ctrl+C` to stop
 
-**Note:** Make sure pandoc is installed and accessible from your PATH before testing DOCX conversion.
+**Note:** Make sure Docker Desktop is running and the Gotenberg container is started before testing DOCX conversion.
 
 ### 6. Install as Windows Service
 
@@ -423,9 +417,10 @@ This project is provided as-is for personal use.
 Built with:
 - [PyWin32](https://github.com/mhammond/pywin32) - Windows API access
 - [Watchdog](https://github.com/gorakhargosh/watchdog) - File system monitoring
-- [Pandoc](https://pandoc.org/) - DOCX to PDF conversion
+- [Gotenberg](https://gotenberg.dev/) - High-quality DOCX to PDF conversion
+- [Docker](https://www.docker.com/) - Container platform for running Gotenberg
 
 ---
 
 **Version**: 1.0.0  
-**Last Updated**: October 26, 2025
+**Last Updated**: November 9, 2025

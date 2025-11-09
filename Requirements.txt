@@ -12,17 +12,18 @@ comtypes>=1.2.0          # Required for pywifi on Windows
 # File System Monitoring
 watchdog>=3.0.0          # Monitor print_jobs directory for new files
 
-# Document Conversion
-# NOTE: Pandoc is required for DOCX to PDF conversion
-# Install separately: https://pandoc.org/installing.html
-# Windows: choco install pandoc  OR  winget install pandoc
-# Optional: wkhtmltopdf for better PDF formatting (choco install wkhtmltopdf)
+# Document Conversion via Gotenberg
+# NOTE: Gotenberg Docker container is required for DOCX to PDF conversion
+# Run: docker run -d -p 3000:3000 --name gotenberg gotenberg/gotenberg:8
+# See: https://gotenberg.dev/docs/getting-started/introduction
+
+# HTTP Client for Gotenberg API
+requests>=2.31.0         # HTTP requests for Gotenberg API calls
 
 # Configuration & Logging
 python-json-logger>=2.0.7  # JSON formatted logging (optional)
 
 # Utility Libraries
-requests>=2.31.0         # HTTP requests (if needed for printer API)
 pillow>=10.1.0          # Image processing (future color support)
 
 # Development & Testing (optional)
