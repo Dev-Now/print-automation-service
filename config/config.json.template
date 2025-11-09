@@ -38,8 +38,14 @@
     "copies": 1,
     "_copies_help": "Number of copies to print by default",
     
-    "paper_size": "A4"
-    "_paper_size_help": "Paper size: A4 or Letter"
+    "paper_size": "A4",
+    "_paper_size_help": "Paper size: A4 or Letter",
+    
+    "auto_orient": true,
+    "_auto_orient_help": "Automatically rotate pages to match paper orientation (true/false)",
+    
+    "fit_to_page": true
+    "_fit_to_page_help": "Scale content to fit page size while maintaining aspect ratio (true/false)"
   },
   
   "paths": {

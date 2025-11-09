@@ -4,13 +4,13 @@ Discovers and communicates with Brother MFC-L2750DW printer
 
 Printing Methods (requires installation and PATH setup):
 1. Ghostscript (RECOMMENDED) - Full control over all print settings
-   - Supports: duplex, duplex_mode, copies, paper_size, color, toner_save
+   - Supports: duplex, duplex_mode, copies, paper_size, color, toner_save, auto_orient, fit_to_page
    - Install from: https://ghostscript.com/releases/gsdnld.html
    - Must be in PATH as: gswin64c, gswin32c, or gs
 
 2. SumatraPDF (ALTERNATIVE) - Lightweight, limited settings
    - Supports: duplex, paper_size
-   - Does NOT support: copies, color, toner_save (via command-line)
+   - Does NOT support: copies, color, toner_save, auto_orient, fit_to_page (via command-line)
    - Install from: https://www.sumatrapdfreader.org/
    - Must be in PATH as: SumatraPDF or SumatraPDF.exe
 
@@ -128,7 +128,9 @@ class PrinterManager:
                             f"toner_save={settings.get('toner_save')}, "
                             f"color={settings.get('color')}, "
                             f"copies={settings.get('copies')}, "
-                            f"paper_size={settings.get('paper_size')}")
+                            f"paper_size={settings.get('paper_size')}, "
+                            f"auto_orient={settings.get('auto_orient', True)}, "
+                            f"fit_to_page={settings.get('fit_to_page', True)}")
             
             # Try method 1: Ghostscript (most reliable, full control)
             success = self._print_with_ghostscript(filepath, settings)
@@ -277,6 +279,18 @@ class PrinterManager:
                 "-sDEVICE=mswinpr2",
                 f"-sOutputFile=%printer%{self.printer_name}",
             ]
+            
+            # Auto-orientation: Automatically rotate pages to match paper orientation
+            if settings.get('auto_orient', True):
+                cmd.append("-dAutoRotatePages=/PageByPage")
+            else:
+                cmd.append("-dAutoRotatePages=/None")
+            
+            # Fit to page: Scale content to fit paper size while maintaining aspect ratio
+            if settings.get('fit_to_page', True):
+                cmd.append("-dFIXEDMEDIA")  # Use fixed paper size
+                cmd.append("-dPDFFitPage")  # Fit PDF to page size
+                cmd.append("-dFitPage")     # Scale to fit
             
             # Duplex setting
             if settings.get('duplex'):
