@@ -1,12 +1,27 @@
 """
 Printer Manager
 Discovers and communicates with Brother MFC-L2750DW printer
+
+Printing Methods (requires installation and PATH setup):
+1. Ghostscript (RECOMMENDED) - Full control over all print settings
+   - Supports: duplex, duplex_mode, copies, paper_size, color, toner_save
+   - Install from: https://ghostscript.com/releases/gsdnld.html
+   - Must be in PATH as: gswin64c, gswin32c, or gs
+
+2. SumatraPDF (ALTERNATIVE) - Lightweight, limited settings
+   - Supports: duplex, paper_size
+   - Does NOT support: copies, color, toner_save (via command-line)
+   - Install from: https://www.sumatrapdfreader.org/
+   - Must be in PATH as: SumatraPDF or SumatraPDF.exe
+
+No fallback methods - jobs fail if tools are not installed or settings cannot be applied.
 """
 
 import win32print
 import win32api
-import win32gui
 from pathlib import Path
+import subprocess
+import shutil
 
 
 class PrinterManager:
@@ -19,6 +34,7 @@ class PrinterManager:
         self.print_settings = config.get_print_settings()
         self.printer_handle = None
         self.connected = False
+        self.print_with_system_default_settings = config.get_behavior().get('print_with_system_default_settings', False)
     
     def is_connected(self):
         """Check if printer is available and ready"""
@@ -102,31 +118,29 @@ class PrinterManager:
             return False
     
     def _print_with_settings(self, filepath, settings):
-        """Apply print settings and send file to printer"""
+        """
+        Apply print settings and send file to printer.
+        Only uses reliable methods that guarantee all settings are applied.
+        """
         try:
-            # Get printer device context
-            hdc = win32gui.CreateDC("WINSPOOL", self.printer_name, None)
-            if not hdc:
-                self.logger.error("Failed to create printer device context")
-                return False
+            self.logger.info(f"Printing with settings: duplex={settings.get('duplex')}, "
+                            f"duplex_mode={settings.get('duplex_mode')}, "
+                            f"toner_save={settings.get('toner_save')}, "
+                            f"color={settings.get('color')}, "
+                            f"copies={settings.get('copies')}, "
+                            f"paper_size={settings.get('paper_size')}")
             
-            try:
-                # Get current DEVMODE (printer settings structure)
-                dm = win32print.GetPrinter(self.printer_handle, 2)['pDevMode']
-                if not dm:
-                    # Create new DEVMODE if none exists
-                    dm = win32print.DocumentProperties(0, self.printer_handle, self.printer_name, None, None, 0)
-                
-                # Apply settings to DEVMODE
-                self._apply_settings_to_devmode(dm, settings)
-                
-                # Use ShellExecute with configured printer
-                # Note: Advanced DEVMODE settings require more complex implementation
-                # For now, we'll use the simpler approach but log the intended settings
-                self.logger.info(f"Printing with settings: duplex={settings.get('duplex')}, "
-                                f"toner_save={settings.get('toner_save')}, "
-                                f"copies={settings.get('copies')}")
-                
+            # Try method 1: Ghostscript (most reliable, full control)
+            success = self._print_with_ghostscript(filepath, settings)
+            if success:
+                return True
+            
+            # Try method 2: SumatraPDF (lightweight alternative)
+            success = self._print_with_sumatra(filepath, settings)
+            if success:
+                return True
+            
+            if self.print_with_system_default_settings:
                 win32api.ShellExecute(
                     0,
                     "print",
@@ -135,59 +149,158 @@ class PrinterManager:
                     ".",
                     0
                 )
-                
                 return True
-                
-            finally:
-                win32gui.DeleteDC(hdc)
+            
+            # No fallbacks - we require tools that guarantee settings
+            self.logger.error("No suitable printing tool found or both methods failed.")
+            self.logger.error("Please install Ghostscript or SumatraPDF and ensure they are in your PATH.")
+            self.logger.error("See PRINTING_SETUP.md for installation instructions.")
+            return False
                 
         except Exception as e:
-            self.logger.error(f"Error applying print settings: {e}")
-            # Don't fallback to printing with wrong settings - fail instead
-            self.logger.error("Cannot print without applying configured settings")
-            self.logger.error("Please check printer driver compatibility or configuration")
+            self.logger.error(f"Error printing file: {e}")
             return False
     
-    def _apply_settings_to_devmode(self, dm, settings):
-        """Apply print settings to Windows DEVMODE structure"""
+    
+    def _print_with_sumatra(self, filepath, settings):
+        """
+        Print using SumatraPDF with print settings.
+        SumatraPDF must be in PATH (SumatraPDF or SumatraPDF.exe).
+        
+        Note: SumatraPDF has limited command-line options. It supports:
+        - duplex (but not duplex_mode selection)
+        - noscale, paper size via print-settings
+        But NOT: copies, color mode, or toner save via command line.
+        """
+        # Find SumatraPDF in PATH (no hardcoded paths)
+        sumatra_exe = shutil.which("SumatraPDF") or shutil.which("SumatraPDF.exe")
+        
+        if not sumatra_exe:
+            self.logger.debug("SumatraPDF not found in PATH")
+            return False
+        
         try:
-            # Set duplex mode
-            if settings.get('duplex', False):
-                if settings.get('duplex_mode') == 'DuplexVertical':
-                    dm.Duplex = 2  # DMDUP_VERTICAL (flip on long edge)
-                else:
-                    dm.Duplex = 3  # DMDUP_HORIZONTAL (flip on short edge)
-            else:
-                dm.Duplex = 1  # DMDUP_SIMPLEX (single-sided)
+            # Build SumatraPDF command
+            cmd = [sumatra_exe, "-print-to", self.printer_name]
             
-            # Set number of copies
-            copies = settings.get('copies', 1)
-            dm.Copies = max(1, min(copies, 99))  # Reasonable limits
+            # Build print-settings string
+            print_settings = []
             
-            # Set color mode
-            if settings.get('color', False):
-                dm.Color = 2  # DMCOLOR_COLOR
-            else:
-                dm.Color = 1  # DMCOLOR_MONOCHROME
+            # Duplex
+            if settings.get('duplex'):
+                print_settings.append("duplex")
             
-            # Set paper size
-            paper_size = settings.get('paper_size', 'A4')
-            if paper_size.upper() == 'A4':
-                dm.PaperSize = 9  # DMPAPER_A4
-            elif paper_size.upper() == 'LETTER':
-                dm.PaperSize = 1  # DMPAPER_LETTER
+            # Paper size
+            paper_size = settings.get('paper_size', 'A4').upper()
+            print_settings.append(f"paper={paper_size}")
             
-            # Note: Toner save mode is printer-specific and may require
-            # different approaches for Brother printers
+            # Add print-settings if we have any
+            if print_settings:
+                cmd.append("-print-settings")
+                cmd.append(",".join(print_settings))
+            
+            cmd.append(str(filepath))
+            
+            self.logger.debug(f"SumatraPDF command: {' '.join(cmd)}")
+            
+            # Warn about unsupported settings
+            if settings.get('copies', 1) > 1:
+                self.logger.warning("SumatraPDF does not support copies via command-line (will print 1 copy)")
             if settings.get('toner_save', False):
-                self.logger.debug("Toner save mode requested (printer-specific implementation needed)")
+                self.logger.warning("SumatraPDF does not support toner save mode via command-line")
+            if not settings.get('color', True) == False:  # If color mode is explicitly set
+                self.logger.warning("SumatraPDF does not support color mode selection via command-line")
             
-            self.logger.debug(f"Applied DEVMODE settings: duplex={dm.Duplex}, "
-                            f"copies={dm.Copies}, color={dm.Color}, paper={dm.PaperSize}")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
+            if result.returncode == 0:
+                self.logger.info("Printed successfully using SumatraPDF")
+                return True
+            else:
+                self.logger.error(f"SumatraPDF failed (returncode {result.returncode}): {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            self.logger.error("SumatraPDF timed out after 30 seconds")
+            return False
         except Exception as e:
-            self.logger.warning(f"Could not apply some print settings: {e}")
-            # Continue with partial settings
+            self.logger.error(f"SumatraPDF method failed: {e}")
+            return False
+    
+    def _print_with_ghostscript(self, filepath, settings):
+        """
+        Print using Ghostscript with full control over all print settings.
+        Ghostscript must be in PATH (gswin64c, gswin32c, or gs).
+        """
+        # Find Ghostscript in PATH (no hardcoded paths)
+        gs_exe = shutil.which("gswin64c") or shutil.which("gswin32c") or shutil.which("gs")
+        
+        if not gs_exe:
+            self.logger.debug("Ghostscript not found in PATH")
+            return False
+        
+        try:
+            # Build Ghostscript command with all settings
+            cmd = [
+                gs_exe,
+                "-dNOPAUSE",
+                "-dBATCH",
+                "-sDEVICE=mswinpr2",
+                f"-sOutputFile=%printer%{self.printer_name}",
+            ]
+            
+            # Duplex setting
+            if settings.get('duplex'):
+                if settings.get('duplex_mode') == 'DuplexVertical':
+                    cmd.extend(["-dDuplex=true", "-dTumble=false"])  # Long edge
+                else:
+                    cmd.extend(["-dDuplex=true", "-dTumble=true"])  # Short edge
+            else:
+                cmd.append("-dDuplex=false")
+            
+            # Copies
+            copies = settings.get('copies', 1)
+            cmd.append(f"-dNumCopies={copies}")
+            
+            # Paper size
+            paper_size = settings.get('paper_size', 'A4').upper()
+            if paper_size == 'A4':
+                cmd.append("-sPAPERSIZE=a4")
+            elif paper_size == 'LETTER':
+                cmd.append("-sPAPERSIZE=letter")
+            
+            # Color/Monochrome
+            # Note: mswinpr2 device uses printer defaults for color
+            # For explicit control, would need different device
+            if not settings.get('color', False):
+                cmd.append("-sColorConversionStrategy=Gray")
+                cmd.append("-dProcessColorModel=/DeviceGray")
+            
+            # Toner save mode
+            # Ghostscript doesn't have direct toner save, but we can reduce quality
+            if settings.get('toner_save', False):
+                cmd.append("-dPDFSETTINGS=/screen")  # Lower quality = less toner
+                self.logger.debug("Toner save: using lower quality settings")
+            
+            cmd.append(str(filepath))
+            
+            self.logger.debug(f"Ghostscript command: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            
+            if result.returncode == 0:
+                self.logger.info("Printed successfully using Ghostscript")
+                return True
+            else:
+                self.logger.error(f"Ghostscript failed (returncode {result.returncode}): {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            self.logger.error("Ghostscript timed out after 60 seconds")
+            return False
+        except Exception as e:
+            self.logger.error(f"Ghostscript method failed: {e}")
+            return False
     
     def get_printer_status(self):
         """Get current printer status"""

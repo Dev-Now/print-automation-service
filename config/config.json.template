@@ -72,8 +72,11 @@
     "convert_docx_to_pdf": true,
     "_convert_docx_help": "Automatically convert DOCX files to PDF before printing",
     
-    "allowed_extensions": [".pdf", ".docx"]
-    "_allowed_extensions_help": "File types that will be processed (others ignored)"
+    "allowed_extensions": [".pdf", ".docx"],
+    "_allowed_extensions_help": "File types that will be processed (others ignored)",
+
+    "print_with_system_default_settings": false,
+    "_print_with_system_default_settings_help": "Enable if you want to use system default settings as last fallback printing method in case of failure"
   },
   
   "gotenberg": {

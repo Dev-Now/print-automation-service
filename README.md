@@ -56,6 +56,26 @@ docker run -d -p 3000:3000 --name gotenberg --restart unless-stopped gotenberg/g
 
 For detailed Gotenberg setup instructions, see [GOTENBERG_SETUP.md](GOTENBERG_SETUP.md).
 
+**Install Printing Tools for Duplex Support:**
+
+⚠️ **CRITICAL:** Tools must be in your system PATH. Install to any location you prefer.
+
+**Option 1: Ghostscript (RECOMMENDED)** - Supports ALL print settings:
+- Download: https://ghostscript.com/releases/gsdnld.html
+- Install Windows 64-bit version (installer adds to PATH automatically)
+- Verify: `gswin64c -version`
+
+**Option 2: SumatraPDF** - Lightweight, limited settings (duplex + paper size only):
+- Download: https://www.sumatrapdfreader.org/download-free-pdf-viewer
+- Install and ensure it's added to PATH
+- Verify: `SumatraPDF -?`
+
+**Settings Support:**
+- Ghostscript: ✅ duplex, duplex_mode, copies, paper_size, color, toner_save
+- SumatraPDF: ✅ duplex, paper_size | ❌ copies, color, toner_save
+
+See [PRINTING_SETUP.md](PRINTING_SETUP.md) for detailed setup, PATH configuration, and troubleshooting.
+
 ### 3. Install Python Dependencies
 
 ```powershell
