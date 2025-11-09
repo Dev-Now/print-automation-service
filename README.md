@@ -2,6 +2,8 @@
 
 **Automated Brother MFC-L2750DW Printer Management**
 
+__Note__: The service should also work for other printers with minor to no changes.
+
 A Windows service that automatically connects to your Brother printer via WiFi Direct and manages print jobs with smart queue management, failure recovery, and automatic archival.
 
 ---
@@ -88,10 +90,12 @@ copy config\config.json.template config\config.json
 **To find your printer WiFi details:**
 1. Turn on your Brother MFC-L2750DW
 2. On printer panel: Menu → Network → WLAN → Wi-Fi Direct
-3. Note the SSID and password
+3. Note the SSID and password (optional)
 4. Update `config/config.json` with these values
 
 **Note:** The `config.json` file contains your WiFi password and is excluded from version control for security.
+
+Note also that the password is optional and only added for future automatic profile creation; The service will attempt to connect without a password using the saved profile (recommended) but you first have to connect manually once and make sure the connection is remembered.
 
 ### 5. Test the Service (Optional)
 
@@ -378,7 +382,6 @@ The modular architecture makes it easy to extend:
 ## Security Notes
 
 - Printer WiFi password stored in `config/config.json` (not encrypted)
-- Service runs with user privileges (not SYSTEM)
 - No external network access required
 - Consider excluding `config/config.json` from version control (use `.gitignore`)
 
@@ -387,12 +390,10 @@ The modular architecture makes it easy to extend:
 ## Future Enhancements
 
 Possible future features:
-- Web interface for monitoring
-- Email/mobile notifications
+- Profile creation for automatic WiFi setup
 - Multiple printer support
 - Scheduled printing
-- Color printing support
-- Custom print profiles per document
+- Web interface for monitoring
 
 ---
 
