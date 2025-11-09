@@ -140,19 +140,15 @@ class PrinterManager:
             if success:
                 return True
             
+            # Try method 3: System default fallback (if enabled in config)
             if self.print_with_system_default_settings:
-                win32api.ShellExecute(
-                    0,
-                    "print",
-                    str(filepath),
-                    f'/d:"{self.printer_name}"',
-                    ".",
-                    0
-                )
-                return True
+                success = self._print_with_system_default(filepath)
+                if success:
+                    self.logger.warning("Printed using system default settings - custom settings may not be applied")
+                    return True
             
             # No fallbacks - we require tools that guarantee settings
-            self.logger.error("No suitable printing tool found or both methods failed.")
+            self.logger.error("No suitable printing tool found or all methods failed.")
             self.logger.error("Please install Ghostscript or SumatraPDF and ensure they are in your PATH.")
             self.logger.error("See PRINTING_SETUP.md for installation instructions.")
             return False
@@ -225,6 +221,39 @@ class PrinterManager:
             return False
         except Exception as e:
             self.logger.error(f"SumatraPDF method failed: {e}")
+            return False
+    
+    def _print_with_system_default(self, filepath):
+        """
+        Print using Windows shell with system default printer settings.
+        This is a last-resort fallback that uses whatever settings are configured
+        in Windows for the printer. Custom settings from config will NOT be applied.
+        
+        Uses win32api.ShellExecute with the 'printto' verb to force printing
+        to the specified printer instead of the system default.
+        """
+        try:
+            # Use printto verb with printer name to force specific printer
+            # Note: This will use Windows default settings for this printer
+            result = win32api.ShellExecute(
+                0,  # hwnd
+                "printto",  # operation - specifically for printing to a named printer
+                str(filepath),  # file
+                f'"{self.printer_name}"',  # parameters - printer name in quotes
+                ".",  # directory
+                0  # show command (SW_HIDE)
+            )
+            
+            # ShellExecute returns a value > 32 on success
+            if result > 32:
+                self.logger.info(f"Printed using Windows shell (system defaults)")
+                return True
+            else:
+                self.logger.error(f"ShellExecute failed with code: {result}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"System default print method failed: {e}")
             return False
     
     def _print_with_ghostscript(self, filepath, settings):

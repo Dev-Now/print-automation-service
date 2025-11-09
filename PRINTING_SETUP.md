@@ -12,7 +12,7 @@ The service tries printing methods in order until one succeeds:
 
 1. **Ghostscript** (RECOMMENDED) - Full control over ALL settings
 2. **SumatraPDF** (ALTERNATIVE) - Lightweight, limited settings
-3. **No fallback** - Job fails if neither tool is available
+3. **No fallback** - Job fails if neither tool is available unless `print_with_system_default_settings` is enabled in config.
 
 ## Settings Support Matrix
 
