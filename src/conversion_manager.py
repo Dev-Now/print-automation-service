@@ -58,11 +58,18 @@ class ConversionManager:
             Path to converted PDF file, or None if conversion failed
         """
         try:
+            # If Gotenberg wasn't available at init, retry the health check
             if not self.gotenberg_available:
-                self.logger.error("Gotenberg service not available")
-                self.logger.error("Please ensure Gotenberg is running:")
-                self.logger.error("  docker run -d -p 3000:3000 gotenberg/gotenberg:8")
-                return None
+                self.logger.info("Retrying Gotenberg health check...")
+                self.gotenberg_available = self._check_gotenberg_available()
+                
+                if self.gotenberg_available:
+                    self.logger.info(f"Gotenberg is now available at {self.gotenberg_url}")
+                else:
+                    self.logger.error("Gotenberg service still not available")
+                    self.logger.error("Please ensure Gotenberg is running:")
+                    self.logger.error("  docker run -d -p 3000:3000 gotenberg/gotenberg:8")
+                    return None
             
             # Generate PDF filename in the same directory
             pdf_path = docx_path.with_suffix('.pdf')
