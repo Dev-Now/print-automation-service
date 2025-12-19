@@ -50,6 +50,7 @@ desktop.ini
 *.tmp
 *.temp
 ~$*
+*.bak
 
 # Test coverage
 .coverage
